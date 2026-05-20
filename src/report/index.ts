@@ -63,7 +63,7 @@ async function main() {
   // --- Zombie subscriptions (subscribed but watchCount = 0 or last watched > 90 days ago) ---
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
   const zombies = subscribed.filter(c =>
-    c.watchCount === 0 || (c.lastWatched && c.lastWatched < ninetyDaysAgo)
+    c.watchCount === 0 || (!c.lastWatched) || c.lastWatched < ninetyDaysAgo
   ).sort((a, b) => a.watchCount - b.watchCount);
 
   const zombieRows = zombies.slice(0, 30).map(c =>
