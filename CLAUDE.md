@@ -2,56 +2,70 @@
 
 ## Contexto del proyecto
 
-Este proyecto analiza el consumo real de YouTube de su dueño usando datos de Google Takeout + YouTube Data API + Claude API. El objetivo es romper cámaras de eco y auditar suscripciones con datos honestos, no el feed sesgado de YouTube.
+Este proyecto analiza el consumo real de YouTube usando datos de Google Takeout + YouTube Data API. El objetivo es romper cámaras de eco y auditar suscripciones con datos honestos, sin el sesgo del algoritmo.
 
-**Stack:** TypeScript / Node.js 20+, YouTube Data API v3, Anthropic SDK.
+**Stack:** TypeScript / Node.js 20+, YouTube Data API v3.
+**Clasificación:** realizada por el agente de IA del usuario (Claude Code, Copilot, Gemini, Codex, etc.) — no requiere billing de API adicional.
 
 ---
 
 ## Estructura de datos
 
 ```
-data/                  # Takeout exports (nunca tocar, nunca commitear)
-  watch-history.json   # Historial de vistas
-  subscriptions.csv    # Lista de suscripciones
+data/                    # Takeout exports — gitignored, nunca commitear
+  watch-history.json
+  subscriptions.csv
 
-output/                # Resultados del pipeline (gitignored)
-  channels.json        # Canales enriquecidos y clasificados
-  report.md            # Último reporte generado
-  audit.json           # Auditoría de suscripciones
+output/                  # Resultados — gitignored
+  channels.json          # Canales enriquecidos y clasificados (fuente de verdad)
+  to_classify.md         # Lista generada para que el agente clasifique
+  classifications.json   # Output del agente, antes de aplicar
+  report.md              # Reporte final de consumo
+  audit.json             # Auditoría de suscripciones
 ```
 
 ---
 
-## Pipeline — pasos en orden
+## Pipeline completo
 
-### 1. Ingest (`src/ingest/`)
-Parsea `data/watch-history.json` y `data/subscriptions.csv`.
-Output: lista normalizada de canales con frecuencia de vistas.
+### Paso 1 — Ingest (automático)
+```bash
+npm run ingest
+```
+Parsea `watch-history.json` y `subscriptions.csv`. Genera `output/channels.json` con todos los canales únicos y su frecuencia de vistas.
 
-### 2. Enrich (`src/enrich/`)
-Para cada canal único, llama YouTube Data API:
-- Nombre, descripción, cantidad de suscriptores
-- Duración promedio de los últimos 10 videos → determina si es Shorts-first / Long-form / Mixto
+### Paso 2 — Enrich (automático)
+```bash
+npm run enrich
+```
+Para cada canal llama YouTube Data API: nombre, descripción, suscriptores, y duración promedio de los últimos 10 videos para clasificar el formato.
 
-**Regla de clasificación de formato:**
+**Regla de formato:**
 - Promedio < 3 min → `shorts-first`
 - Promedio > 8 min → `long-form`
 - Entre 3-8 min → `mixed`
 
-### 3. Classify (`src/classify/`)
-Llama Claude API para clasificar cada canal en la taxonomía de categorías del proyecto.
-Input: nombre + descripción del canal.
-Output: categoría primaria + categoría secundaria (opcional) + confianza.
+### Paso 3 — Classify (agentico — rol del asistente de IA)
+```bash
+npm run classify:prepare   # genera output/to_classify.md
+```
+Luego el agente lee `output/to_classify.md` y clasifica cada canal según la taxonomía de abajo.
+El agente guarda el resultado en `output/classifications.json`.
+```bash
+npm run classify:apply     # aplica las clasificaciones a channels.json
+```
 
-### 4. Report (`src/report/`)
-Genera `output/report.md` y `output/audit.json` con métricas de consumo, diversidad y auditoría de suscripciones.
+### Paso 4 — Report (automático)
+```bash
+npm run report
+```
+Genera `output/report.md` con métricas de consumo, diversidad y auditoría de suscripciones.
 
 ---
 
 ## Taxonomía de categorías
 
-Estas son las categorías válidas para clasificación. Claude debe asignar una primaria y, si aplica, una secundaria:
+Categorías válidas. Asignar una primaria obligatoria y una secundaria si aplica:
 
 **Tecnología**
 - `tech/hardware` — PCs, GPUs, impresoras 3D, electrónica
@@ -75,61 +89,86 @@ Estas son las categorías válidas para clasificación. Claude debe asignar una 
 - `education/skills` — tutoriales, aprendizaje de habilidades
 
 **Sin categoría**
-- `uncategorized` — cuando no hay información suficiente para clasificar
+- `uncategorized` — información insuficiente para clasificar
 
 ---
 
-## Reglas para el agente
+## Instrucciones de clasificación para el agente
 
-### Cuándo ejecutar el pipeline completo
-Si el usuario pide "analizá", "corré el análisis", "actualizá los datos" o similar:
+Cuando el usuario pida clasificar canales:
+
+1. Leer `output/to_classify.md`
+2. Para cada canal, asignar `categoryPrimary` y opcionalmente `categorySecondary` de la taxonomía de arriba
+3. Guardar el resultado en `output/classifications.json` con este formato exacto:
+
+```json
+[
+  {
+    "channelId": "UCxxxxxx",
+    "categoryPrimary": "tech/hardware",
+    "categorySecondary": "tech/gaming"
+  }
+]
+```
+
+4. Informar al usuario cuántos canales clasificaste y decirle que corra `npm run classify:apply`
+
+**Reglas de clasificación:**
+- Basarse en el nombre + descripción del canal, no en supuestos
+- Si hay duda entre dos categorías, elegir la más específica
+- Si el canal mezcla contenido de forma equilibrada, usar `categorySecondary`
+- Nunca inventar categorías fuera de la taxonomía
+
+---
+
+## Consultas frecuentes del usuario
+
+**"Analizá mis canales" / "Corré el análisis"**
 1. Verificar que existan `data/watch-history.json` y `data/subscriptions.csv`
-2. Ejecutar los pasos en orden: ingest → enrich → classify → report
-3. Informar cuántos canales se procesaron y si hubo errores de API
-
-### Cuándo leer los outputs sin re-ejecutar
-Para preguntas sobre datos ya procesados, leer directamente `output/channels.json` o `output/report.md`. No re-ejecutar el pipeline si los datos son recientes (menos de 7 días).
-
-### Preguntas frecuentes del usuario y cómo responderlas
+2. Guiar al usuario por los 4 pasos del pipeline en orden
+3. Ofrecer clasificar en el paso 3
 
 **"¿Cuáles son mis canales más vistos?"**
-→ Leer `output/channels.json`, ordenar por `watchCount` desc, mostrar top 10 con categoría y formato.
+Leer `output/channels.json`, ordenar por `watchCount` desc, mostrar top 10 con categoría y formato.
 
 **"¿Tengo cámara de eco?"**
-→ Calcular % de watch time por categoría. Si una categoría supera 60%, o si `news/argentina` u `opinion/` tienen >40% del total, marcar como posible cámara de eco y explicar con datos.
+Agrupar por `categoryPrimary`, calcular % de vistas por categoría. Si alguna supera el 60%, o si `news/argentina` + `opinion/` suman más del 50%, alertar con los datos.
 
 **"¿Qué suscripciones puedo borrar?"**
-→ Leer `output/audit.json`. Mostrar canales con `watchCount: 0` o `lastWatched` > 90 días. Separar por formato (shorts-first vs long-form).
+Filtrar `channels.json` donde `isSubscribed: true` y (`watchCount: 0` o `lastWatched` < 90 días atrás). Separar entre shorts-first y long-form.
 
 **"¿Qué porcentaje de mi consumo es X?"**
-→ Agrupar `output/channels.json` por categoría, calcular % sobre total de vistas.
+Agrupar `channels.json` por `categoryPrimary`, calcular % sobre suma total de `watchCount`.
 
-**"Recomendame canales"**
-→ Identificar categorías subrepresentadas (< 5% del consumo), sugerir búsqueda en YouTube o preguntar al usuario qué temas le interesan explorar.
-
-### Qué NO hacer
-- No commitear nada de `data/` ni `output/` — están en `.gitignore`
-- No llamar a YouTube API más de lo necesario — cachear resultados en `output/channels.json`
-- No inventar datos si el pipeline no se ejecutó — pedir al usuario que provea los archivos de Takeout
-- No clasificar con las categorías de YouTube — usar exclusivamente la taxonomía definida arriba
+**"Clasificá mis canales"**
+Seguir el flujo del Paso 3 arriba.
 
 ---
 
-## Variables de entorno requeridas
+## Reglas generales
+
+- Nunca commitear `data/` ni `output/` — están en `.gitignore`
+- No llamar a YouTube API más de lo necesario — los resultados se cachean en `channels.json` (`enrichedAt` indica si ya fue procesado)
+- No re-ejecutar el pipeline si `channels.json` tiene menos de 7 días
+- Solo usar categorías de la taxonomía definida — nunca las categorías de YouTube
+
+---
+
+## Variables de entorno
 
 ```
-YOUTUBE_API_KEY=      # YouTube Data API v3
-ANTHROPIC_API_KEY=    # Para clasificación con Claude
+YOUTUBE_API_KEY=    # YouTube Data API v3 (única API key necesaria)
 ```
 
 ---
 
-## Comandos disponibles
+## Comandos
 
 ```bash
-npm run ingest      # Parsea Takeout y genera lista de canales únicos
-npm run enrich      # Enriquece con YouTube API
-npm run classify    # Clasifica con Claude API
-npm run report      # Genera reporte final
-npm run pipeline    # Corre los 4 pasos en orden
+npm run ingest            # Parsea Takeout
+npm run enrich            # Enriquece con YouTube API
+npm run classify:prepare  # Prepara lista para que el agente clasifique
+npm run classify:apply    # Aplica clasificaciones del agente a channels.json
+npm run report            # Genera reporte final
+npm run pipeline          # Corre ingest + enrich + report (classify es manual)
 ```

@@ -5,12 +5,12 @@
   "scripts": {
     "ingest": "tsx src/ingest/index.ts",
     "enrich": "tsx src/enrich/index.ts",
-    "classify": "tsx src/classify/index.ts",
+    "classify:prepare": "tsx src/classify/prepare.ts",
+    "classify:apply": "tsx src/classify/apply.ts",
     "report": "tsx src/report/index.ts",
     "pipeline": "tsx src/pipeline.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
     "csv-parse": "^5.6.0",
     "dotenv": "^16.4.0",
     "googleapis": "^144.0.0"
