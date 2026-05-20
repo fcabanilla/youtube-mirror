@@ -8,7 +8,8 @@
     "classify:prepare": "tsx src/classify/prepare.ts",
     "classify:apply": "tsx src/classify/apply.ts",
     "report": "tsx src/report/index.ts",
-    "pipeline": "tsx src/pipeline.ts"
+    "pipeline": "tsx src/pipeline.ts",
+    "mock": "tsx scripts/generate-mock-data.ts"
   },
   "dependencies": {
     "csv-parse": "^5.6.0",
