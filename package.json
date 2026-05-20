@@ -1,0 +1,23 @@
+{
+  "name": "youtube-mirror",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "ingest": "tsx src/ingest/index.ts",
+    "enrich": "tsx src/enrich/index.ts",
+    "classify": "tsx src/classify/index.ts",
+    "report": "tsx src/report/index.ts",
+    "pipeline": "tsx src/pipeline.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "csv-parse": "^5.6.0",
+    "dotenv": "^16.4.0",
+    "googleapis": "^144.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
