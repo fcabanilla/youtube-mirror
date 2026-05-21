@@ -6,6 +6,7 @@
     "ingest": "tsx src/ingest/index.ts",
     "enrich": "tsx src/enrich/index.ts",
     "classify:prepare": "tsx src/classify/prepare.ts",
+    "classify:auto": "tsx src/classify/auto.ts",
     "classify:apply": "tsx src/classify/apply.ts",
     "report": "tsx src/report/index.ts",
     "pipeline": "tsx src/pipeline.ts",
