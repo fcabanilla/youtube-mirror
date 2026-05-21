@@ -45,6 +45,21 @@ Para cada canal llama YouTube Data API: nombre, descripción, suscriptores, y du
 - Promedio > 8 min → `long-form`
 - Entre 3-8 min → `mixed`
 
+### Paso 2b — Enrich videos (opcional, mejora el reporte)
+```bash
+npm run events          # primero: genera output/events.json
+npm run enrich:videos   # luego: fetchea duraciones reales por video
+```
+Lee `output/events.json`, extrae todos los video IDs únicos, llama `videos.list?part=contentDetails` en batches de 50.
+Escribe `output/video-durations.json`: `{ [videoId]: durationSeconds | null }`.
+
+- `null` = video eliminado/privado (ya consultado, no se vuelve a consultar)
+- Ausencia de clave = nunca consultado
+- **Idempotente**: re-runs solo fetchean IDs nuevos
+- **Costo quota**: ~1 unit por batch de 50 → ~900 units para 44k eventos → muy por debajo del límite de 10.000/día
+- `html.ts` escribe automáticamente `output/durations.js` si el JSON existe
+- El modal muestra duración real cuando está disponible, con `~` y tooltip cuando es estimado (promedio del canal)
+
 ### Paso 3 — Classify (agentico — rol del asistente de IA)
 ```bash
 npm run classify:prepare   # genera output/to_classify.md
@@ -67,29 +82,46 @@ Genera `output/report.md` con métricas de consumo, diversidad y auditoría de s
 
 Categorías válidas. Asignar una primaria obligatoria y una secundaria si aplica:
 
-**Tecnología**
-- `tech/hardware` — PCs, GPUs, impresoras 3D, electrónica
-- `tech/software` — programación, devtools, IA/ML
-- `tech/gaming` — videojuegos, análisis, gameplays
+**Política**
+- `politics/argentina` — política, economía y actualidad argentina (Milei, kirchnerismo, Congreso, economía nacional)
+- `politics/geopolitics` — geopolítica, conflictos y noticias internacionales (Ucrania, Israel, Venezuela, EEUU)
+- `opinion/economics` — macroeconomía, negocios, libertarismo y finanzas (no Argentina-specific)
 
-**Información y opinión**
-- `news/argentina` — política y economía argentina
-- `news/international` — geopolítica, noticias globales
-- `opinion/economics` — economía, finanzas personales, inversiones
-- `opinion/general` — ensayo, debate, divulgación de ideas
+**Deportes**
+- `sports/f1` — Fórmula 1, WEC y motorsport real (análisis, carreras, pilotos)
+- `sports/simracing` — simuladores de carreras: iRacing, Le Mans Ultimate, Assetto Corsa
+- `sports/general` — fútbol y otros deportes
+
+**Tecnología**
+- `gaming` — videojuegos: gameplays, análisis, noticias de juegos, esports
+- `tech/hardware` — hardware, PCs, smartphones, electrónica, impresión 3D
+- `tech/software` — programación, IA/ML, devtools, ciberseguridad
+
+**Ciencia**
+- `science` — divulgación científica, física, química, ingeniería, aeronáutica, medicina, biología
 
 **Entretenimiento**
-- `entertainment/humor` — comedia, sketches, absurdo
-- `entertainment/sports` — deportes, análisis deportivo
-- `entertainment/lifestyle` — vlogs, viajes, gastronomía
+- `entertainment/humor` — humor, memes, clips virales, shitposting, compilaciones
+- `entertainment/mystery` — misterio, crimen, hechos perturbadores, horror, curiosidades históricas virales
+- `entertainment/podcast` — podcasts y talk shows de entrevistas/debate sin temática específica
+- `entertainment/lifestyle` — lifestyle, cocina, viajes, vida nocturna, veterinaria, vlogs
+
+**Hobbies**
+- `hobby/lego` — LEGO: construcciones, sets, MOCs, reviews de sets
+- `hobby/diy` — manualidades, DIY, reparaciones, jardinería, coleccionismo
 
 **Educación**
-- `education/science` — ciencia, física, biología, matemáticas
-- `education/history` — historia, arqueología, cultura
-- `education/skills` — tutoriales, aprendizaje de habilidades
+- `education/history` — historia, documentales etnográficos, arqueología, cultura
 
 **Sin categoría**
 - `uncategorized` — información insuficiente para clasificar
+
+**Notas clave de clasificación:**
+- El Escoces gamer: el usuario ve sus videos de curiosidades históricas, NO gaming → `entertainment/mystery`
+- Canales de streaming político argentino (Carajo, LHDA, Tipito, Neura Media) → `politics/argentina`
+- Solo Fonseca, Lupago → `politics/geopolitics` (análisis internacional/militar)
+- Simracing (Borja Zazo, Heikki360ES, GITGUD Racing) → `sports/simracing`, NO `sports/general`
+- F1 (Sportmaniaticos, David Perogil) → `sports/f1`, NO `sports/general`
 
 ---
 
@@ -165,10 +197,23 @@ YOUTUBE_API_KEY=    # YouTube Data API v3 (única API key necesaria)
 ## Comandos
 
 ```bash
-npm run ingest            # Parsea Takeout
-npm run enrich            # Enriquece con YouTube API
+npm run ingest            # Parsea Takeout → output/channels.json
+npm run enrich            # Enriquece canales con YouTube API (formato, suscriptores)
+npm run events            # Extrae eventos por video → output/events.json (10MB)
+npm run enrich:videos     # Duración real por video → output/video-durations.json (opcional)
 npm run classify:prepare  # Prepara lista para que el agente clasifique
 npm run classify:apply    # Aplica clasificaciones del agente a channels.json
-npm run report            # Genera reporte final
+npm run report            # Genera reporte Markdown
+npm run report:html       # Genera reporte visual → output/report.html + events.js + durations.js
 npm run pipeline          # Corre ingest + enrich + report (classify es manual)
+```
+
+**Archivos output y sus dependencias:**
+```
+output/channels.json        ← ingest → enrich → classify:apply (fuente de verdad)
+output/events.json          ← npm run events (desde Takeout, sin API)
+output/video-durations.json ← npm run enrich:videos (desde events.json + YouTube API)
+output/report.html          ← npm run report:html (desde los tres anteriores)
+output/events.js            ← generado por report:html si events.json existe
+output/durations.js         ← generado por report:html si video-durations.json existe
 ```

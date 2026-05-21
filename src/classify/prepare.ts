@@ -10,7 +10,18 @@ const CHANNELS_FILE = 'output/channels.json';
 const OUTPUT_FILE = 'output/to_classify.md';
 
 const channels: Channel[] = JSON.parse(fs.readFileSync(CHANNELS_FILE, 'utf-8'));
-const unclassified = channels.filter(c => !c.classifiedAt && c.channelName !== 'Unknown (never watched)');
+
+// Only classify enriched channels with a real name, sorted by watchCount desc
+// Focus on watchCount >= 3 (meaningful consumption) + subscribed (zombie audit)
+const unclassified = channels
+  .filter(c =>
+    !c.classifiedAt &&
+    c.enrichedAt &&
+    c.channelName &&
+    c.channelName !== 'Unknown (never watched)' &&
+    (c.watchCount >= 3 || c.isSubscribed)
+  )
+  .sort((a, b) => b.watchCount - a.watchCount);
 
 if (unclassified.length === 0) {
   console.log('All channels are already classified.');

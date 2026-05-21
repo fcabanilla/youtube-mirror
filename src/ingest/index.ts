@@ -21,7 +21,7 @@ function parseSpanishTimestamp(raw: string): string {
   const m = raw.trim().match(
     /(\d{1,2})\s+(\w{3})\s+(\d{4}),\s+(\d{1,2}):(\d{2}):(\d{2})\s+(a\.m\.|p\.m\.)\s+GMT([+-]\d{2}):(\d{2})/
   );
-  if (!m) return new Date().toISOString();
+  if (!m) return '';
 
   const [, day, mon, year, h, min, sec, ampm, tzH, tzM] = m;
   let hour = parseInt(h, 10);

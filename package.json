@@ -9,16 +9,25 @@
     "classify:auto": "tsx src/classify/auto.ts",
     "classify:apply": "tsx src/classify/apply.ts",
     "report": "tsx src/report/index.ts",
+    "report:html": "tsx src/report/html.ts",
     "pipeline": "tsx src/pipeline.ts",
-    "mock": "tsx scripts/generate-mock-data.ts"
+    "mock": "tsx scripts/generate-mock-data.ts",
+    "events": "tsx src/ingest/build-events.ts",
+    "enrich:videos": "tsx src/enrich/video-durations.ts",
+    "enrich:live": "tsx src/enrich/video-live.ts",
+    "serve": "tsx src/server/index.ts"
   },
   "dependencies": {
     "csv-parse": "^5.6.0",
     "dotenv": "^16.4.0",
-    "googleapis": "^144.0.0"
+    "express": "^5.2.1",
+    "googleapis": "^144.0.0",
+    "lowdb": "^7.0.1"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^22.0.0",
+    "chart.js": "^4.5.1",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }

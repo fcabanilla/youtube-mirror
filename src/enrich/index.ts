@@ -91,7 +91,10 @@ async function main() {
   }
 
   const channels: Channel[] = JSON.parse(fs.readFileSync(CHANNELS_FILE, 'utf-8'));
-  const toEnrich = channels.filter(c => !c.enrichedAt && c.channelId.startsWith('UC'));
+  // Only enrich meaningful channels: watched 3+ times OR subscribed (for zombie audit)
+  const toEnrich = channels.filter(c =>
+    !c.enrichedAt && c.channelId.startsWith('UC') && (c.watchCount >= 3 || c.isSubscribed)
+  );
 
   console.log(`Enriching ${toEnrich.length} channels via YouTube API...`);
 
